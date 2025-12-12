@@ -294,14 +294,41 @@ class CricketGameEngine {
     }
 
     processShot(shotType, timing) {
-        if (!this.currentBall || !this.currentBatsman1) return null;
+        console.log('Processing shot:', shotType, 'Timing:', timing);
+        
+        if (!this.currentBall) {
+            console.error('No current ball!');
+            return null;
+        }
+        
+        if (!this.currentBatsman1) {
+            console.error('No current batsman!');
+            return null;
+        }
         
         const shot = shotTypes[shotType];
+        if (!shot) {
+            console.error('Invalid shot type:', shotType);
+            return null;
+        }
+        
         const batsman = this.currentBatsman1;
         const bowler = this.currentBowler;
         
+        if (!batsman || !bowler) {
+            console.error('Missing player data:', { batsman, bowler });
+            return null;
+        }
+        
         // Calculate outcome based on shot, timing, player stats, and ball type
         const outcome = this.calculateOutcome(shot, batsman, bowler, timing, this.currentBall);
+        
+        if (!outcome) {
+            console.error('No outcome calculated!');
+            return null;
+        }
+        
+        console.log('Outcome calculated:', outcome);
         
         // Process the outcome
         this.applyOutcome(outcome);

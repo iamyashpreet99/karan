@@ -3,73 +3,249 @@ let gameEngine;
 let renderer;
 let gameLoop;
 
+// Wait for all scripts to load
+function waitForScripts(callback, maxAttempts = 50) {
+    let attempts = 0;
+    const checkScripts = () => {
+        attempts++;
+        const hasGameData = typeof cricketTeams !== 'undefined';
+        const hasGameEngine = typeof CricketGameEngine !== 'undefined';
+        const hasRenderer = typeof CricketRenderer !== 'undefined';
+        
+        console.log(`Attempt ${attempts}: gameData=${hasGameData}, gameEngine=${hasGameEngine}, renderer=${hasRenderer}`);
+        
+        if (hasGameData && hasGameEngine && hasRenderer) {
+            console.log('All scripts loaded!');
+            callback();
+        } else if (attempts < maxAttempts) {
+            setTimeout(checkScripts, 100);
+        } else {
+            console.error('Scripts failed to load after', maxAttempts, 'attempts');
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = 'padding: 50px; text-align: center; color: red; background: white; margin: 20px; border-radius: 10px;';
+            errorDiv.innerHTML = `
+                <h1>Error Loading Game</h1>
+                <p>Some scripts failed to load. Please check:</p>
+                <ul style="text-align: left; display: inline-block;">
+                    <li>gameData.js: ${hasGameData ? '✓' : '✗'}</li>
+                    <li>gameEngine.js: ${hasGameEngine ? '✓' : '✗'}</li>
+                    <li>renderer.js: ${hasRenderer ? '✓' : '✗'}</li>
+                </ul>
+                <p>Make sure all files are in the same folder and refresh the page.</p>
+            `;
+            document.body.appendChild(errorDiv);
+        }
+    };
+    checkScripts();
+}
+
 // Initialize game
 document.addEventListener('DOMContentLoaded', () => {
-    gameEngine = new CricketGameEngine();
-    renderer = new CricketRenderer('gameCanvas');
+    console.log('DOM loaded, waiting for scripts...');
     
-    initializeSetupScreen();
-    initializeGameScreen();
-    
-    // Start renderer animation
-    renderer.startAnimation();
-    
-    // Start game loop
-    startGameLoop();
+    waitForScripts(() => {
+        try {
+            console.log('Initializing game components...');
+            
+            gameEngine = new CricketGameEngine();
+            renderer = new CricketRenderer('gameCanvas');
+            
+            console.log('Game engine and renderer created');
+            
+            initializeSetupScreen();
+            initializeGameScreen();
+            
+            // Start renderer animation
+            if (renderer) {
+                // Wait a bit for canvas to be ready
+                setTimeout(() => {
+                    if (renderer && renderer.canvas) {
+                        renderer.startAnimation();
+                        console.log('Renderer animation started');
+                    }
+                }, 200);
+            }
+            
+            // Start game loop
+            startGameLoop();
+            
+            console.log('Game initialized successfully!');
+        } catch (error) {
+            console.error('Error initializing game:', error);
+            console.error('Error stack:', error.stack);
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = 'padding: 50px; text-align: center; color: red; background: white; margin: 20px; border-radius: 10px;';
+            errorDiv.innerHTML = `
+                <h1>Error Loading Game</h1>
+                <p><strong>${error.message}</strong></p>
+                <p>Please check the browser console (F12) for details.</p>
+                <pre style="text-align: left; background: #f5f5f5; padding: 10px; border-radius: 5px; overflow: auto;">${error.stack}</pre>
+            `;
+            document.body.appendChild(errorDiv);
+        }
+    });
 });
 
 function initializeSetupScreen() {
-    // Load teams
-    const teamSelector = document.getElementById('teamSelector');
-    const opponentSelector = document.getElementById('opponentSelector');
-    
-    Object.keys(cricketTeams).forEach(teamName => {
-        const team = cricketTeams[teamName];
+    try {
+        // Load teams
+        const teamSelector = document.getElementById('teamSelector');
+        const opponentSelector = document.getElementById('opponentSelector');
         
-        // Player team selector
-        const teamCard = createTeamCard(team);
-        teamCard.onclick = () => selectTeam(teamName, teamCard, 'player');
-        teamSelector.appendChild(teamCard);
+        // Check if elements exist
+        if (!teamSelector || !opponentSelector) {
+            console.error('Team selector elements not found!');
+            setTimeout(initializeSetupScreen, 100);
+            return;
+        }
         
-        // Opponent team selector
-        const opponentCard = createTeamCard(team);
-        opponentCard.onclick = () => selectTeam(teamName, opponentCard, 'opponent');
-        opponentSelector.appendChild(opponentCard);
-    });
+        // Check if cricketTeams is defined
+        if (typeof cricketTeams === 'undefined' || cricketTeams === null) {
+            console.error('cricketTeams not loaded! Make sure gameData.js is loaded before main.js');
+            teamSelector.innerHTML = '<p style="color: red; padding: 20px;">Error: Teams data not loaded. Please refresh the page.</p>';
+            opponentSelector.innerHTML = '<p style="color: red; padding: 20px;">Error: Teams data not loaded.</p>';
+            return;
+        }
+        
+        // Clear any existing content (including loading message)
+        teamSelector.innerHTML = '';
+        opponentSelector.innerHTML = '';
+        
+        // Safely get team names
+        let teamNames = [];
+        try {
+            teamNames = Object.keys(cricketTeams);
+        } catch (e) {
+            console.error('Error getting team keys:', e);
+            teamSelector.innerHTML = '<p style="color: red; padding: 20px;">Error reading teams data: ' + e.message + '</p>';
+            return;
+        }
+        
+        console.log('Loading teams:', teamNames);
+        console.log('Total teams found:', teamNames.length);
+        console.log('cricketTeams type:', typeof cricketTeams);
+        console.log('cricketTeams is array?', Array.isArray(cricketTeams));
+        
+        if (!Array.isArray(teamNames) || teamNames.length === 0) {
+            teamSelector.innerHTML = '<p style="color: red; padding: 20px;">No teams found! Please check gameData.js</p>';
+            opponentSelector.innerHTML = '<p style="color: red; padding: 20px;">No teams found!</p>';
+            return;
+        }
+        
+        // Create team cards
+        teamNames.forEach(teamName => {
+            try {
+                const team = cricketTeams[teamName];
+                
+                if (!team || !team.name) {
+                    console.warn('Invalid team data for:', teamName);
+                    return;
+                }
+                
+                // Player team selector
+                const teamCard = createTeamCard(team);
+                if (teamCard) {
+                    teamCard.onclick = () => selectTeam(teamName, teamCard, 'player');
+                    teamSelector.appendChild(teamCard);
+                }
+                
+                // Opponent team selector
+                const opponentCard = createTeamCard(team);
+                if (opponentCard) {
+                    opponentCard.onclick = () => selectTeam(teamName, opponentCard, 'opponent');
+                    opponentSelector.appendChild(opponentCard);
+                }
+            } catch (e) {
+                console.error('Error creating card for team:', teamName, e);
+            }
+        });
+        
+        console.log('Teams loaded successfully. Total teams:', teamNames.length);
+        console.log('Team cards created:', teamSelector.children.length, 'for player,', opponentSelector.children.length, 'for opponent');
+    } catch (error) {
+        console.error('Error in initializeSetupScreen:', error);
+        console.error('Error stack:', error.stack);
+        const teamSelector = document.getElementById('teamSelector');
+        const opponentSelector = document.getElementById('opponentSelector');
+        if (teamSelector) {
+            teamSelector.innerHTML = '<p style="color: red; padding: 20px;">Error: ' + error.message + '</p>';
+        }
+        if (opponentSelector) {
+            opponentSelector.innerHTML = '<p style="color: red; padding: 20px;">Error loading teams.</p>';
+        }
+    }
     
     // Format selection
-    document.querySelectorAll('.format-btn[data-format]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            document.querySelectorAll('.format-btn[data-format]').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            checkStartButton();
+    const formatButtons = document.querySelectorAll('.format-btn[data-format]');
+    if (formatButtons && formatButtons.length > 0) {
+        formatButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.format-btn[data-format]').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                checkStartButton();
+            });
         });
-    });
+    }
     
     // Difficulty selection
-    document.querySelectorAll('.format-btn[data-difficulty]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            document.querySelectorAll('.format-btn[data-difficulty]').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            checkStartButton();
+    const difficultyButtons = document.querySelectorAll('.format-btn[data-difficulty]');
+    if (difficultyButtons && difficultyButtons.length > 0) {
+        difficultyButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.format-btn[data-difficulty]').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                checkStartButton();
+            });
         });
-    });
+    }
     
     // Start match button
     document.getElementById('startMatchBtn').addEventListener('click', startMatch);
+    
+    // Initial check for button state (format and difficulty have default active classes)
+    setTimeout(() => {
+        // Verify format and difficulty buttons exist
+        const formatButtons = document.querySelectorAll('.format-btn[data-format]');
+        const difficultyButtons = document.querySelectorAll('.format-btn[data-difficulty]');
+        
+        console.log('Format buttons found:', formatButtons.length);
+        console.log('Difficulty buttons found:', difficultyButtons.length);
+        
+        // Ensure at least one format and difficulty is selected
+        if (formatButtons.length > 0 && !document.querySelector('.format-btn[data-format].active')) {
+            formatButtons[0].classList.add('active');
+        }
+        if (difficultyButtons.length > 0 && !document.querySelector('.format-btn[data-difficulty].active')) {
+            difficultyButtons[0].classList.add('active');
+        }
+        
+        checkStartButton();
+    }, 200);
 }
 
 function createTeamCard(team) {
     const card = document.createElement('div');
     card.className = 'team-card';
+    
+    // Ensure we have valid data
+    const teamName = team?.name || 'Unknown';
+    const teamFlag = team?.flag || '🏏';
+    
     card.innerHTML = `
-        <div class="team-flag">${team.flag}</div>
-        <div class="team-name">${team.name}</div>
+        <div class="team-flag">${teamFlag}</div>
+        <div class="team-name">${teamName}</div>
     `;
+    
+    console.log('Created team card for:', teamName);
     return card;
 }
 
 function selectTeam(teamName, element, type) {
+    if (!gameEngine) {
+        console.error('Game engine not initialized!');
+        return;
+    }
+    
     if (type === 'player') {
         gameEngine.playerTeam = teamName;
         document.querySelectorAll('#teamSelector .team-card').forEach(card => {
@@ -83,10 +259,12 @@ function selectTeam(teamName, element, type) {
                 card.classList.remove('selected');
             });
         }
+        
+        console.log('Player team selected:', teamName);
     } else {
         // Prevent selecting same team as player
         if (gameEngine.playerTeam === teamName) {
-            alert('Cannot select the same team as opponent!');
+            alert('Cannot select the same team as your team! Please choose a different opponent.');
             return;
         }
         
@@ -94,21 +272,63 @@ function selectTeam(teamName, element, type) {
         document.querySelectorAll('#opponentSelector .team-card').forEach(card => {
             card.classList.remove('selected');
         });
+        
+        console.log('Opponent team selected:', teamName);
     }
     
     element.classList.add('selected');
+    
+    // Visual feedback
+    element.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+        element.style.transform = 'scale(1)';
+    }, 150);
+    
     checkStartButton();
 }
 
 function checkStartButton() {
-    const format = document.querySelector('.format-btn[data-format].active')?.dataset.format;
-    const difficulty = document.querySelector('.format-btn[data-difficulty].active')?.dataset.difficulty;
+    const formatBtn = document.querySelector('.format-btn[data-format].active');
+    const difficultyBtn = document.querySelector('.format-btn[data-difficulty].active');
+    
+    const format = formatBtn?.dataset.format;
+    const difficulty = difficultyBtn?.dataset.difficulty;
     
     const btn = document.getElementById('startMatchBtn');
-    if (gameEngine.playerTeam && gameEngine.opponentTeam && format && difficulty) {
+    const statusDiv = document.getElementById('setupStatus');
+    
+    if (!btn) return;
+    
+    const hasPlayerTeam = gameEngine && gameEngine.playerTeam;
+    const hasOpponentTeam = gameEngine && gameEngine.opponentTeam;
+    const hasFormat = format && format.length > 0;
+    const hasDifficulty = difficulty && difficulty.length > 0;
+    
+    // Update status message
+    if (statusDiv) {
+        const missing = [];
+        if (!hasPlayerTeam) missing.push('Your Team');
+        if (!hasOpponentTeam) missing.push('Opponent Team');
+        if (!hasFormat) missing.push('Match Format');
+        if (!hasDifficulty) missing.push('Difficulty');
+        
+        if (missing.length > 0) {
+            statusDiv.innerHTML = `<p style="color: #dc3545;">⚠️ Missing: ${missing.join(', ')}</p>`;
+        } else {
+            statusDiv.innerHTML = `<p style="color: #198754;">✓ Ready to start!</p>`;
+        }
+    }
+    
+    if (hasPlayerTeam && hasOpponentTeam && hasFormat && hasDifficulty) {
         btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.style.background = 'linear-gradient(135deg, #198754 0%, #0f5132 100%)';
     } else {
         btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.style.cursor = 'not-allowed';
+        btn.style.background = '#6c757d';
     }
 }
 
@@ -139,37 +359,100 @@ function startMatch() {
 }
 
 function initializeGameScreen() {
-    // Setup shot buttons
-    document.querySelectorAll('.shot-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const shotType = e.currentTarget.dataset.shot;
-            playShot(shotType);
-        });
+    try {
+        // Setup shot buttons
+        const shotButtons = document.querySelectorAll('.shot-btn');
+        if (shotButtons && shotButtons.length > 0) {
+            shotButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const shotType = e.currentTarget.dataset.shot;
+                    playShot(shotType);
+                });
+                
+                // Power hold
+                btn.addEventListener('mousedown', () => {
+                    if (!gameEngine || !gameEngine.waitingForInput) return;
+                    gameEngine.startPowerHold();
+                    startPowerUpdate();
+                });
+                
+                btn.addEventListener('mouseup', () => {
+                    if (!gameEngine) return;
+                    gameEngine.stopPowerHold();
+                    stopPowerUpdate();
+                });
+                
+                btn.addEventListener('mouseleave', () => {
+                    if (!gameEngine) return;
+                    gameEngine.stopPowerHold();
+                    stopPowerUpdate();
+                });
+            });
+        }
         
-        // Power hold
-        btn.addEventListener('mousedown', () => {
-            if (!gameEngine.waitingForInput) return;
-            gameEngine.startPowerHold();
-            startPowerUpdate();
-        });
+        // Stats tabs
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        if (tabButtons && tabButtons.length > 0) {
+            tabButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const tab = e.target.dataset.tab;
+                    switchTab(tab);
+                });
+            });
+        }
         
-        btn.addEventListener('mouseup', () => {
-            gameEngine.stopPowerHold();
-            stopPowerUpdate();
-        });
+        // Keyboard controls
+        setupKeyboardControls();
+    } catch (error) {
+        console.error('Error in initializeGameScreen:', error);
+    }
+}
+
+// Keyboard controls
+function setupKeyboardControls() {
+    document.addEventListener('keydown', (e) => {
+        // Only handle keys when match screen is active
+        const matchScreen = document.getElementById('matchScreen');
+        if (!matchScreen || !matchScreen.classList.contains('active')) {
+            return;
+        }
         
-        btn.addEventListener('mouseleave', () => {
-            gameEngine.stopPowerHold();
-            stopPowerUpdate();
-        });
-    });
-    
-    // Stats tabs
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const tab = e.target.dataset.tab;
-            switchTab(tab);
-        });
+        // Prevent default for game keys
+        if (['w', 'a', 's', 'd', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+            e.preventDefault();
+        }
+        
+        const key = e.key.toLowerCase();
+        
+        // Shot selection keys
+        if (gameEngine && gameEngine.waitingForInput && !gameEngine.shotSelected) {
+            switch(key) {
+                case 'w':
+                    playShot('defense');
+                    break;
+                case 'a':
+                    playShot('loft');
+                    break;
+                case 's':
+                    playShot('drive');
+                    break;
+                case 'd':
+                    playShot('sweep');
+                    break;
+            }
+        }
+        
+        // Player movement (left/right arrows)
+        if (renderer && renderer.batsmanPos) {
+            const moveSpeed = 0.02;
+            if (e.key === 'ArrowLeft') {
+                renderer.batsmanPos.x = Math.max(0.3, renderer.batsmanPos.x - moveSpeed);
+                if (renderer) renderer.draw();
+            } else if (e.key === 'ArrowRight') {
+                renderer.batsmanPos.x = Math.min(0.7, renderer.batsmanPos.x + moveSpeed);
+                if (renderer) renderer.draw();
+            }
+        }
     });
 }
 
@@ -181,61 +464,138 @@ function showScreen(screenId) {
 }
 
 function startNextBall() {
-    if (!gameEngine.isGameActive) return;
+    if (!gameEngine || !gameEngine.isGameActive) return;
     
     // Start ball delivery
     const ball = gameEngine.startBallDelivery();
     
-    if (!ball) return;
+    if (!ball) {
+        console.warn('Ball delivery failed to start');
+        return;
+    }
+    
+    // Update commentary
+    updateCommentary(`${gameEngine.currentBowler?.name || 'Bowler'} is running in...`);
     
     // Animate ball delivery
-    renderer.animateBallDelivery(
-        { x: 0.5, y: 0.3 },
-        { x: 0.5, y: 0.6 },
-        800
-    ).then(() => {
-        // Ball reached batsman, enable input
-        updateCommentary('Choose your shot!');
-    });
+    if (renderer) {
+        renderer.animateBallDelivery(
+            { x: 0.5, y: 0.3 },
+            { x: 0.5, y: 0.6 },
+            800
+        ).then(() => {
+            // Ball reached batsman, enable input
+            updateCommentary('Choose your shot!');
+        }).catch(err => {
+            console.error('Ball animation error:', err);
+            // Fallback: just enable input
+            updateCommentary('Choose your shot!');
+        });
+    } else {
+        // Fallback if renderer not available
+        setTimeout(() => {
+            updateCommentary('Choose your shot!');
+        }, 800);
+    }
 }
 
 function playShot(shotType) {
-    if (!gameEngine.waitingForInput || gameEngine.shotSelected) {
+    if (!gameEngine) {
+        console.error('Game engine not initialized');
         return;
+    }
+    
+    if (!gameEngine.waitingForInput) {
+        updateCommentary('Wait for the ball to be delivered!');
+        return;
+    }
+    
+    if (gameEngine.shotSelected) {
+        return; // Already selected a shot
     }
     
     const timing = gameEngine.updateTiming();
     const success = gameEngine.selectShot(shotType);
-    if (!success) return;
+    
+    if (!success) {
+        console.warn('Shot selection failed');
+        return;
+    }
     
     // Disable buttons
-    document.querySelectorAll('.shot-btn').forEach(btn => {
-        btn.disabled = true;
-    });
+    const shotButtons = document.querySelectorAll('.shot-btn');
+    if (shotButtons) {
+        shotButtons.forEach(btn => {
+            btn.disabled = true;
+        });
+    }
+    
+    // Show shot selection feedback
+    updateCommentary(`Playing ${shotTypes[shotType]?.name || shotType}...`);
     
     // Process outcome after short delay
     setTimeout(() => {
+        if (!gameEngine) return;
+        
         const outcome = gameEngine.processShot(shotType, timing);
         
         if (outcome) {
             handleOutcome(outcome);
+        } else {
+            console.error('No outcome from shot');
+            // Re-enable buttons if something went wrong
+            if (shotButtons) {
+                shotButtons.forEach(btn => {
+                    btn.disabled = false;
+                });
+            }
         }
-    }, 300);
+    }, 500);
 }
 
 function handleOutcome(outcome) {
+    console.log('Handling outcome:', outcome);
+    
+    if (!outcome) {
+        console.error('No outcome provided');
+        // Re-enable buttons
+        const shotButtons = document.querySelectorAll('.shot-btn');
+        if (shotButtons) {
+            shotButtons.forEach(btn => {
+                btn.disabled = false;
+            });
+        }
+        return;
+    }
+    
     // Update commentary
     updateCommentary(outcome.message);
     
     // Visual effects
-    if (outcome.type === 'four' || outcome.type === 'six') {
+    if (renderer && renderer.canvas && renderer.canvas.width > 0) {
         const w = renderer.canvas.width;
         const h = renderer.canvas.height;
-        renderer.animateBoundary(w * 0.5, h * 0.5);
-    } else if (outcome.type === 'wicket') {
-        const w = renderer.canvas.width;
-        const h = renderer.canvas.height;
-        renderer.animateWicket(w * 0.5, h * 0.6);
+        
+        if (outcome.type === 'four' || outcome.type === 'six') {
+            if (renderer.animateBoundary) {
+                renderer.animateBoundary(w * 0.5, h * 0.5);
+            }
+            // Show celebration particles
+            if (renderer.createParticles) {
+                for (let i = 0; i < 30; i++) {
+                    renderer.createParticles(
+                        w * (0.4 + Math.random() * 0.2),
+                        h * (0.5 + Math.random() * 0.2),
+                        '#FFD700',
+                        1
+                    );
+                }
+            }
+        } else if (outcome.type === 'wicket') {
+            if (renderer.animateWicket) {
+                renderer.animateWicket(w * 0.5, h * 0.6);
+            }
+        }
     }
     
     // Update UI
@@ -245,19 +605,27 @@ function handleOutcome(outcome) {
     updateStats();
     
     // Check if match ended
-    if (!gameEngine.isGameActive) {
+    if (!gameEngine || !gameEngine.isGameActive) {
         setTimeout(() => {
             showMatchResult();
         }, 3000);
         return;
     }
     
-    // Enable buttons for next ball
+    // Enable buttons for next ball after a delay
     setTimeout(() => {
-        document.querySelectorAll('.shot-btn').forEach(btn => {
-            btn.disabled = false;
-        });
-        startNextBall();
+        console.log('Re-enabling buttons and starting next ball');
+        const shotButtons = document.querySelectorAll('.shot-btn');
+        if (shotButtons) {
+            shotButtons.forEach(btn => {
+                btn.disabled = false;
+            });
+        }
+        
+        // Start next ball
+        if (gameEngine && gameEngine.isGameActive) {
+            startNextBall();
+        }
     }, 2000);
 }
 
