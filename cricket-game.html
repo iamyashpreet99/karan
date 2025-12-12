@@ -423,7 +423,7 @@
             <div class="setup-section">
                 <h2>Select Match Format</h2>
                 <div class="format-selector">
-                    <button class="format-btn" data-format="T20">T20 (20 Overs)</button>
+                    <button class="format-btn selected" data-format="T20">T20 (20 Overs)</button>
                     <button class="format-btn" data-format="ODI">ODI (50 Overs)</button>
                     <button class="format-btn" data-format="Test">Test (Simplified)</button>
                 </div>
@@ -433,7 +433,7 @@
                 <h2>Select AI Difficulty</h2>
                 <div class="format-selector">
                     <button class="format-btn" data-difficulty="Easy">Easy</button>
-                    <button class="format-btn" data-difficulty="Medium">Medium</button>
+                    <button class="format-btn selected" data-difficulty="Medium">Medium</button>
                     <button class="format-btn" data-difficulty="Hard">Hard</button>
                 </div>
             </div>
@@ -630,11 +630,19 @@
         function initGame() {
             loadTeams();
             setupEventListeners();
+            // Set default format and difficulty as selected
+            document.querySelector('.format-btn[data-format="T20"]').classList.add('selected');
+            document.querySelector('.format-btn[data-difficulty="Medium"]').classList.add('selected');
         }
 
         // Load Teams
         async function loadTeams() {
             const teamSelector = document.getElementById('teamSelector');
+            
+            if (!teamSelector) {
+                console.error('Team selector element not found!');
+                return;
+            }
             
             try {
                 // Try to fetch from API (if available)
@@ -650,23 +658,37 @@
 
         function displayTeams() {
             const teamSelector = document.getElementById('teamSelector');
+            if (!teamSelector) {
+                console.error('Team selector element not found in displayTeams!');
+                return;
+            }
+            
             teamSelector.innerHTML = '';
             
             Object.keys(staticTeams).forEach(teamName => {
                 const teamCard = document.createElement('div');
                 teamCard.className = 'team-card';
                 teamCard.textContent = teamName;
-                teamCard.onclick = () => selectTeam(teamName);
+                teamCard.onclick = () => selectTeam(teamName, teamCard);
                 teamSelector.appendChild(teamCard);
             });
         }
 
-        function selectTeam(teamName) {
+        function selectTeam(teamName, element) {
             gameState.playerTeam = teamName;
             document.querySelectorAll('.team-card').forEach(card => {
                 card.classList.remove('selected');
             });
-            event.target.classList.add('selected');
+            if (element) {
+                element.classList.add('selected');
+            } else {
+                // Fallback: find the card by text content
+                document.querySelectorAll('.team-card').forEach(card => {
+                    if (card.textContent.trim() === teamName) {
+                        card.classList.add('selected');
+                    }
+                });
+            }
             checkStartButton();
         }
 
@@ -1259,7 +1281,11 @@
         window.startInnings = startInnings;
 
         // Initialize game on load
-        initGame();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initGame);
+        } else {
+            initGame();
+        }
     </script>
 </body>
 </html>

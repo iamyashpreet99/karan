@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cricket Batting Game - 2nd Innings Chase</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Pre-Match Setup Screen -->
+    <div id="setupScreen" class="screen active">
+        <div class="container">
+            <div class="header">
+                <h1>🏏 Cricket Batting Game</h1>
+                <p class="subtitle">2nd Innings Chase - You Bat, AI Bowls</p>
+            </div>
+
+            <div class="setup-section">
+                <h2>Select Your Team</h2>
+                <div id="teamSelector" class="team-grid">
+                    <!-- Teams will be loaded dynamically -->
+                </div>
+            </div>
+
+            <div class="setup-section">
+                <h2>Select Opponent Team</h2>
+                <div id="opponentSelector" class="team-grid">
+                    <!-- Opponents will be loaded dynamically -->
+                </div>
+            </div>
+
+            <div class="setup-section">
+                <h2>Match Format</h2>
+                <div class="format-selector">
+                    <button class="format-btn active" data-format="T20">T20 (20 Overs)</button>
+                    <button class="format-btn" data-format="ODI">ODI (50 Overs)</button>
+                    <button class="format-btn" data-format="Test">Test (90 Overs)</button>
+                </div>
+            </div>
+
+            <div class="setup-section">
+                <h2>Difficulty Level</h2>
+                <div class="format-selector">
+                    <button class="format-btn" data-difficulty="Easy">Easy</button>
+                    <button class="format-btn active" data-difficulty="Medium">Medium</button>
+                    <button class="format-btn" data-difficulty="Hard">Hard</button>
+                </div>
+            </div>
+
+            <button id="startMatchBtn" class="btn-primary" disabled>Start Match</button>
+        </div>
+    </div>
+
+    <!-- Match Screen -->
+    <div id="matchScreen" class="screen">
+        <div class="game-container">
+            <!-- Scoreboard HUD -->
+            <div class="scoreboard-hud">
+                <div class="scoreboard-main">
+                    <div class="score-item">
+                        <div class="label">Score</div>
+                        <div class="value" id="currentScore">0/0</div>
+                    </div>
+                    <div class="score-item">
+                        <div class="label">Overs</div>
+                        <div class="value" id="currentOvers">0.0</div>
+                    </div>
+                    <div class="score-item">
+                        <div class="label">Target</div>
+                        <div class="value" id="targetScore">0</div>
+                    </div>
+                    <div class="score-item">
+                        <div class="label">Required RR</div>
+                        <div class="value" id="requiredRR">0.00</div>
+                    </div>
+                </div>
+                <div class="overs-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="oversProgress"></div>
+                    </div>
+                    <div class="overs-text" id="oversText">0.0 / 20.0</div>
+                </div>
+                <div class="last-six-balls" id="lastSixBalls"></div>
+            </div>
+
+            <!-- Game Canvas -->
+            <div class="canvas-container">
+                <canvas id="gameCanvas"></canvas>
+                <div class="commentary-box" id="commentary">
+                    <div class="commentary-text">Match about to begin...</div>
+                </div>
+            </div>
+
+            <!-- Player Info -->
+            <div class="player-info-panel">
+                <div class="batsman-info" id="batsman1Info">
+                    <div class="player-avatar" id="batsman1Avatar"></div>
+                    <div class="player-details">
+                        <div class="player-name" id="batsman1Name">-</div>
+                        <div class="player-stats" id="batsman1Stats">0 (0)</div>
+                    </div>
+                </div>
+                <div class="batsman-info" id="batsman2Info">
+                    <div class="player-avatar" id="batsman2Avatar"></div>
+                    <div class="player-details">
+                        <div class="player-name" id="batsman2Name">-</div>
+                        <div class="player-stats" id="batsman2Stats">0 (0)</div>
+                    </div>
+                </div>
+                <div class="bowler-info" id="bowlerInfo">
+                    <div class="player-avatar" id="bowlerAvatar"></div>
+                    <div class="player-details">
+                        <div class="player-name" id="bowlerName">-</div>
+                        <div class="player-stats" id="bowlerStats">0-0-0-0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Batting Controls -->
+            <div class="controls-panel" id="controlsPanel">
+                <div class="controls-header">
+                    <h3>Choose Your Shot</h3>
+                    <div class="timing-indicator">
+                        <div class="timing-bar">
+                            <div class="timing-fill" id="timingFill"></div>
+                        </div>
+                        <div class="timing-label">Timing</div>
+                    </div>
+                </div>
+                <div class="shot-buttons">
+                    <button class="shot-btn" data-shot="defense">
+                        <span class="shot-icon">🛡️</span>
+                        <span class="shot-name">Defense</span>
+                    </button>
+                    <button class="shot-btn" data-shot="drive">
+                        <span class="shot-icon">⚡</span>
+                        <span class="shot-name">Drive</span>
+                    </button>
+                    <button class="shot-btn" data-shot="cut">
+                        <span class="shot-icon">✂️</span>
+                        <span class="shot-name">Cut</span>
+                    </button>
+                    <button class="shot-btn" data-shot="pull">
+                        <span class="shot-icon">💪</span>
+                        <span class="shot-name">Pull</span>
+                    </button>
+                    <button class="shot-btn" data-shot="sweep">
+                        <span class="shot-icon">🧹</span>
+                        <span class="shot-name">Sweep</span>
+                    </button>
+                    <button class="shot-btn" data-shot="loft">
+                        <span class="shot-icon">🚀</span>
+                        <span class="shot-name">Loft</span>
+                    </button>
+                    <button class="shot-btn" data-shot="leave">
+                        <span class="shot-icon">👋</span>
+                        <span class="shot-name">Leave</span>
+                    </button>
+                </div>
+                <div class="power-meter-container">
+                    <div class="power-label">Power: <span id="powerValue">0%</span></div>
+                    <div class="power-meter">
+                        <div class="power-fill" id="powerFill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Match Stats -->
+            <div class="stats-panel" id="statsPanel">
+                <div class="stats-tabs">
+                    <button class="tab-btn active" data-tab="scorecard">Scorecard</button>
+                    <button class="tab-btn" data-tab="graph">Run Rate</button>
+                    <button class="tab-btn" data-tab="manhattan">Manhattan</button>
+                </div>
+                <div class="stats-content">
+                    <div class="tab-content active" id="scorecardTab">
+                        <div class="scorecard-table" id="scorecardTable"></div>
+                    </div>
+                    <div class="tab-content" id="graphTab">
+                        <canvas id="graphCanvas"></canvas>
+                    </div>
+                    <div class="tab-content" id="manhattanTab">
+                        <canvas id="manhattanCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Match Result Screen -->
+    <div id="resultScreen" class="screen">
+        <div class="container">
+            <div class="result-header" id="resultHeader">
+                <h1 id="resultTitle">Match Result</h1>
+            </div>
+            <div class="result-content" id="resultContent"></div>
+            <div class="result-actions">
+                <button class="btn-primary" onclick="location.reload()">Play Again</button>
+                <button class="btn-secondary" id="viewScorecardBtn">View Full Scorecard</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="gameData.js"></script>
+    <script src="gameEngine.js"></script>
+    <script src="renderer.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
+
